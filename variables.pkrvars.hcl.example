@@ -1,0 +1,5 @@
+vm_base_name = "ghcr.io/cirruslabs/debian:bookworm"
+vm_name = "debian"
+cpu_count = 2
+memory_gb = 3
+disk_size_gb = 32

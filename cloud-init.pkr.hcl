@@ -7,18 +7,42 @@ packer {
   }
 }
 
+variable "vm_base_name" {
+  type = string
+  default = "ghcr.io/cirruslabs/debian:bookworm"
+}
+
 variable "vm_name" {
   type = string
+  default = "debian"
+}
+
+variable "cpu_count" {
+  type = number
+  default = 2
+}
+
+variable "memory_gb" {
+  type = number
+  default = 3
+}
+
+variable "disk_size_gb" {
+  type = number
+  default = 32
 }
 
 source "tart-cli" "tart" {
+  vm_base_name = "${var.vm_base_name}"
   vm_name = "${var.vm_name}"
-  disk_size_gb = 20
+  cpu_count = "${var.cpu_count}"
+  memory_gb = "${var.memory_gb}"
+  disk_size_gb = "${var.disk_size_gb}"
+  ssh_username = "admin"
+  ssh_password = "admin"
   run_extra_args = ["--disk", "cloud-init.iso"]
   headless = false
   disable_vnc = true
-  ssh_username = "admin"
-  ssh_password = "admin"
 }
 
 build {
