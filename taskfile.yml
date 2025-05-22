@@ -1,0 +1,22 @@
+version: "3.0"
+
+set: ['e', 'u', 'pipefail']
+shopt: ['globstar']
+
+dotenv: ['.env']
+
+# env:
+
+# vars:
+
+includes:
+  packer:
+    taskfile: ./taskfiles/packer.yml
+  tart:
+    taskfile: ./taskfiles/tart.yml
+
+tasks:
+  default:
+    desc: "Default task"
+    cmds:
+      - task --list

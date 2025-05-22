@@ -1,0 +1,112 @@
+version: "3"
+
+set: ['e', 'u', 'pipefail']
+shopt: ['globstar']
+
+# TODO: figure out env vs. vars precedence to avoid hardcoding vm name
+# env:
+
+vars:
+  INSTANCE_ID: debian-{{now | date "20060102150405"}}
+  WORK_DIR: "{{.ROOT_DIR}}/cloud-init"
+  BUILD_DIR: build
+  CIDATA_DIR: cidata
+  CLOUD_INIT_ISO: "{{.ROOT_DIR}}/cloud-init.iso"
+
+tasks:
+  init:
+    desc: Initialize packer plugins
+    cmds:
+      - packer init .
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - |
+        rm -rf {{.BUILD_DIR}}
+        rm -f {{.CLOUD_INIT_ISO}}
+        rm -rf {{.CIDATA_DIR}}
+
+  cloud-init-iso:
+    desc: Create cloud-init ISO with admin group support
+    sources:
+      - cloud-init/user-data.distro-with-admin-group
+      - cloud-init/network-config
+    generates:
+      - cloud-init.iso
+    cmds:
+      - |
+        mkdir -p {{.CIDATA_DIR}}
+        cp cloud-init/user-data.distro-with-admin-group {{.CIDATA_DIR}}/user-data
+        cp cloud-init/network-config {{.CIDATA_DIR}}/network-config
+        echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
+        echo "local-hostname: debian" >> {{.CIDATA_DIR}}/meta-data
+        hdiutil makehybrid -o cloud-init.iso {{.CIDATA_DIR}} -iso -joliet
+        rm -rf {{.CIDATA_DIR}}
+
+  cloud-init-iso-no-admin:
+    desc: Create cloud-init ISO for distros without admin group
+    sources:
+      - cloud-init/user-data.distro-without-admin-group
+      - cloud-init/network-config
+    generates:
+      - "{{.CLOUD_INIT_ISO}}"
+    cmds:
+      - |
+        mkdir -p {{.CIDATA_DIR}}
+        cp cloud-init/user-data.distro-without-admin-group {{.CIDATA_DIR}}/user-data
+        cp cloud-init/network-config {{.CIDATA_DIR}}/network-config
+        echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
+        echo "local-hostname: debian" >> {{.CIDATA_DIR}}/meta-data
+        hdiutil makehybrid -o cloud-init-tmp.iso {{.CIDATA_DIR}} -iso -joliet
+        mv cloud-init-tmp.iso {{.CLOUD_INIT_ISO}}
+        rm -rf {{.CIDATA_DIR}}
+
+  build:
+    desc: Build the Packer image
+    deps:
+      - cloud-init-iso
+    sources:
+      - cloud-init.pkr.hcl
+      - variables.pkrvars.hcl
+      - 99_cirruslabs.cfg
+      - "{{.CLOUD_INIT_ISO}}"
+    generates:
+      - "{{.BUILD_DIR}}/debian-custom"
+    cmds:
+      - |
+        mkdir -p {{.BUILD_DIR}}
+        packer build -var-file="variables.pkrvars.hcl" cloud-init.pkr.hcl
+
+  with-admin:
+    desc: Build with admin group support (explicit)
+    deps:
+      - clean
+      - cloud-init-iso
+      - build
+
+  without-admin:
+    desc: Build for distros without admin group
+    deps:
+      - clean
+      - cloud-init-iso-no-admin
+      - build
+
+  test:
+    desc: Run the built image for testing
+    deps:
+      - build
+    cmds:
+      - echo "Starting test VM..."
+      - task: tart:clone -- debian debian-test
+      - task: tart:run -- debian-test
+
+  iso-only:
+    desc: Just create the cloud-init ISO (with admin group)
+    deps:
+      - cloud-init-iso
+
+  iso-only-no-admin:
+    desc: Just create the cloud-init ISO (without admin group)
+    deps:
+      - cloud-init-iso-no-admin

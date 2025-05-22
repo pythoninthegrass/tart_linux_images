@@ -1,0 +1,70 @@
+version: "3"
+
+set: ['e', 'u', 'pipefail']
+shopt: ['globstar']
+
+tasks:
+  list:
+    desc: "List all VMs and container images"
+    cmds:
+      - tart list
+    aliases:
+      - ls
+
+  clone:
+    desc: "Clone a VM"
+    summary: |
+      Usage:
+        task tart:clone -- <vm-name> <new-vm-name>
+    cmds:
+      - |
+        if [[ -z "{{.CLI_ARGS}}" ]]; then
+          tart clone --help
+        else
+          tart clone {{.CLI_ARGS}}
+        fi
+
+  run:
+    desc: "Run a VM"
+    summary: |
+      Usage:
+        task tart:run -- <vm-name>
+    cmds:
+      - |
+        if [[ -z "{{.CLI_ARGS}}" ]]; then
+          tart run --help
+        else
+          tart run {{.CLI_ARGS}} &
+        fi
+    status:
+      - tart list | awk '/{{.CLI_ARGS}}/ {print $NF}' | grep -q "running"
+
+  stop:
+    desc: "Stop a VM"
+    summary: |
+      Usage:
+        task tart:stop -- <vm-name>
+    cmds:
+      - |
+        if [[ -z "{{.CLI_ARGS}}" ]]; then
+          tart stop --help
+        else
+          tart stop {{.CLI_ARGS}}
+        fi
+    status:
+      - tart list | awk '/{{.CLI_ARGS}}/ {print $NF}' | grep -q "stopped"
+
+  delete:
+    desc: "Delete a VM"
+    summary: |
+      Usage:
+        task tart:delete -- <vm-name>
+    cmds:
+      - |
+        if [[ -z "{{.CLI_ARGS}}" ]]; then
+          tart delete --help
+        else
+          tart delete {{.CLI_ARGS}}
+        fi
+    status:
+      - ! tart list | awk '/{{.CLI_ARGS}}/'
