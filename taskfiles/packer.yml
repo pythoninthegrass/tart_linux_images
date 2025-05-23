@@ -23,12 +23,14 @@ tasks:
     desc: Clean build artifacts
     cmds:
       - |
-        rm -rf {{.BUILD_DIR}}
+        rm -rf {{.BUILD_DIR}}/*
         rm -f {{.CLOUD_INIT_ISO}}
         rm -rf {{.CIDATA_DIR}}
 
   cloud-init-iso:
     desc: Create cloud-init ISO with admin group support
+    deps:
+      - clean
     sources:
       - cloud-init/user-data.distro-with-admin-group
       - cloud-init/network-config
@@ -46,6 +48,8 @@ tasks:
 
   cloud-init-iso-no-admin:
     desc: Create cloud-init ISO for distros without admin group
+    deps:
+      - clean
     sources:
       - cloud-init/user-data.distro-without-admin-group
       - cloud-init/network-config
