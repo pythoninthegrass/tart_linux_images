@@ -1,0 +1,101 @@
+---
+- name: Configure Ubuntu with MATE Desktop
+  hosts: default
+  become: true
+
+  tasks:
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install MATE desktop environment
+      ansible.builtin.apt:
+        name:
+          - mate-desktop-environment-extras
+        state: present
+        install_recommends: true
+
+    - name: Install additional packages
+      ansible.builtin.apt:
+        name:
+          - build-essential
+          - curl
+          - git
+          - lightdm
+          - lightdm-gtk-greeter
+          - openssh-server
+          - wget
+          - xinit
+          - xorg
+        state: present
+
+    - name: Set MATE as default session
+      ansible.builtin.alternatives:
+        name: x-session-manager
+        path: /usr/bin/mate-session
+
+    - name: Configure LightDM to use MATE
+      ansible.builtin.lineinfile:
+        path: /etc/lightdm/lightdm.conf
+        regexp: '^user-session='
+        line: 'user-session=mate'
+        create: true
+        backup: true
+
+    - name: Enable auto-login for user
+      ansible.builtin.blockinfile:
+        path: /etc/lightdm/lightdm.conf
+        block: |
+          [Seat:*]
+          autologin-user={{ ansible_user }}
+          autologin-user-timeout=0
+        create: true
+        backup: true
+
+    - name: Configure display manager
+      ansible.builtin.systemd:
+        name: lightdm
+        enabled: true
+
+    - name: Create .Xauthority file
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/.Xauthority"
+        state: touch
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+
+    - name: Create .xinitrc for MATE
+      ansible.builtin.copy:
+        content: |
+          #!/bin/sh
+
+          if [ -f ~/.Xresources ]; then
+            xrdb -merge ~/.Xresources
+          fi
+
+          exec mate-session
+        dest: "/home/{{ ansible_user }}/.xinitrc"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Disable snapd service and socket
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      with_items:
+        - snapd.service
+        - snapd.socket
+      ignore_errors: true
+
+    - name: Mask snapd service and socket
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        masked: true
+      with_items:
+        - snapd.service
+        - snapd.socket
+      ignore_errors: true

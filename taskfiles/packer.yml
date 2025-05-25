@@ -7,7 +7,7 @@ shopt: ['globstar']
 # env:
 
 vars:
-  INSTANCE_ID: debian-{{now | date "20060102150405"}}
+  INSTANCE_ID: ubuntu-{{now | date "20060102150405"}}
   WORK_DIR: "{{.ROOT_DIR}}/cloud-init"
   BUILD_DIR: build
   CIDATA_DIR: cidata
@@ -42,7 +42,7 @@ tasks:
         cp cloud-init/user-data.distro-with-admin-group {{.CIDATA_DIR}}/user-data
         cp cloud-init/network-config {{.CIDATA_DIR}}/network-config
         echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
-        echo "local-hostname: debian" >> {{.CIDATA_DIR}}/meta-data
+        echo "local-hostname: ubuntu" >> {{.CIDATA_DIR}}/meta-data
         hdiutil makehybrid -o cloud-init.iso {{.CIDATA_DIR}} -iso -joliet
         rm -rf {{.CIDATA_DIR}}
 
@@ -61,7 +61,7 @@ tasks:
         cp cloud-init/user-data.distro-without-admin-group {{.CIDATA_DIR}}/user-data
         cp cloud-init/network-config {{.CIDATA_DIR}}/network-config
         echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
-        echo "local-hostname: debian" >> {{.CIDATA_DIR}}/meta-data
+        echo "local-hostname: ubuntu" >> {{.CIDATA_DIR}}/meta-data
         hdiutil makehybrid -o cloud-init-tmp.iso {{.CIDATA_DIR}} -iso -joliet
         mv cloud-init-tmp.iso {{.CLOUD_INIT_ISO}}
         rm -rf {{.CIDATA_DIR}}
@@ -76,7 +76,7 @@ tasks:
       - 99_cirruslabs.cfg
       - "{{.CLOUD_INIT_ISO}}"
     generates:
-      - "{{.BUILD_DIR}}/debian-custom"
+      - "{{.BUILD_DIR}}/ubuntu-custom"
     cmds:
       - |
         mkdir -p {{.BUILD_DIR}}
@@ -102,8 +102,8 @@ tasks:
       - build
     cmds:
       - echo "Starting test VM..."
-      - task: tart:clone -- debian debian-test
-      - task: tart:run -- debian-test
+      - task: tart:clone -- ubuntu ubuntu-test
+      - task: tart:run -- ubuntu-test
 
   iso-only:
     desc: Just create the cloud-init ISO (with admin group)

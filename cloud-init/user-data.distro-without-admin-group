@@ -8,3 +8,5 @@ users:
     shell: /bin/bash
 
 ssh_pwauth: true
+
+final_message: "The system is finally up, after $UPTIME seconds"
