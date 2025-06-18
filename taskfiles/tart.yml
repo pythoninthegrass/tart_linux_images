@@ -11,6 +11,23 @@ tasks:
     aliases:
       - ls
 
+  pull:
+    desc: "Pull a VM image"
+    summary: |
+      Usage:
+        task tart:pull -- <vm-name>
+    cmds:
+      - tart pull {{.NAME}}
+    vars:
+      NAME: '{{.CLI_ARGS | default "ghcr.io/cirruslabs/ubuntu"}}'
+    status:
+      - |
+        if tart list --source oci | grep -q "{{.NAME}}"; then
+          echo "Image {{.NAME}} is already cached!"
+        else
+          tart pull {{.NAME}}
+        fi
+
   clone:
     desc: "Clone a VM"
     summary: |
