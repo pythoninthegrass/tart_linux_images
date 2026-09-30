@@ -10,8 +10,7 @@
     - name: Gather installed package facts
       ansible.builtin.package_facts:
 
-    # ansible-core 2.18's dnf5 module requires the python3-libdnf5 bindings,
-    # which aren't present on the Fedora cloud image by default.
+    # dnf5 module requires python3-libdnf5, not present on the Fedora cloud image.
     - name: Bootstrap python3-libdnf5
       ansible.builtin.command: dnf -y install python3-libdnf5
       when: "'python3-libdnf5' not in ansible_facts.packages"
@@ -26,11 +25,7 @@
           - spice-vdagent
           - mesa-dri-drivers
           - mesa-vulkan-drivers
-          # The Fedora Cloud base image ships only kernel-modules-core
-          # (storage/network essentials); virtio_snd, snd-hda-intel, and
-          # effectively every other sound driver live in kernel-modules,
-          # so without it neither Tart nor UTM guests have any audio
-          # device at all.
+          # Carries virtio_snd, snd-hda-intel, etc., absent from the cloud image's kernel-modules-core; see docs/development.md.
           - kernel-modules
         state: present
 
@@ -53,10 +48,7 @@
         name: plasmalogin
         enabled: true
 
-    # spice-vdagentd and its socket are static units with no [Install]
-    # section; they can't be "enabled", but the socket brings the daemon up
-    # automatically at boot via socket activation once spice-vdagent is
-    # installed, so there's nothing further to configure here.
+    # spice-vdagentd is a static unit; socket activation starts it, nothing to enable. See docs/development.md.
 
     - name: Set default systemd target to graphical
       ansible.builtin.command: systemctl set-default graphical.target
