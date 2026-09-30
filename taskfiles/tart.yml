@@ -51,8 +51,17 @@ tasks:
         if [[ -z "{{.CLI_ARGS}}" ]]; then
           tart run --help
         else
-          tart run {{.CLI_ARGS}} &
+          # Task kills the whole process group of a cmds script when it
+          # finishes, so plain `&`/nohup/subshell backgrounding still gets
+          # reaped along with it. os.setsid() moves the child into its own
+          # session before Task's cleanup can reach it.
+          python3 -c '
+        import os, subprocess, sys
+        os.setsid()
+        subprocess.Popen(["tart", "run", sys.argv[1]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ' {{.CLI_ARGS}}
         fi
+        true
     status:
       - tart list | awk '/{{.CLI_ARGS}}/ {print $NF}' | grep -q "running"
 

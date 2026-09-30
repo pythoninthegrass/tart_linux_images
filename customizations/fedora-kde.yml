@@ -1,0 +1,58 @@
+---
+- name: Configure Fedora with KDE Plasma Desktop
+  hosts: default
+  become: true
+  gather_facts: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+
+    # ansible-core 2.18's dnf5 module requires the python3-libdnf5 bindings,
+    # which aren't present on the Fedora cloud image by default.
+    - name: Bootstrap python3-libdnf5
+      ansible.builtin.command: dnf -y install python3-libdnf5
+      when: "'python3-libdnf5' not in ansible_facts.packages"
+      changed_when: true
+
+    - name: Install KDE Plasma desktop and supporting packages
+      ansible.builtin.dnf5:
+        name:
+          - "@kde-desktop-environment"
+          - firefox
+          - alsa-utils
+          - spice-vdagent
+          - mesa-dri-drivers
+          - mesa-vulkan-drivers
+        state: present
+
+    - name: Configure plasmalogin autologin user
+      ansible.builtin.lineinfile:
+        path: /etc/plasmalogin.conf
+        regexp: '^#?User=.*'
+        line: "User={{ ansible_user }}"
+        backup: true
+
+    - name: Configure plasmalogin session
+      ansible.builtin.lineinfile:
+        path: /etc/plasmalogin.conf
+        regexp: '^#?Session=.*'
+        line: "Session=plasma"
+        backup: true
+
+    - name: Enable plasmalogin
+      ansible.builtin.systemd:
+        name: plasmalogin
+        enabled: true
+
+    # spice-vdagentd and its socket are static units with no [Install]
+    # section; they can't be "enabled", but the socket brings the daemon up
+    # automatically at boot via socket activation once spice-vdagent is
+    # installed, so there's nothing further to configure here.
+
+    - name: Set default systemd target to graphical
+      ansible.builtin.command: systemctl set-default graphical.target
+      register: set_default_target
+      changed_when: "'Removed' in set_default_target.stdout or 'Created' in set_default_target.stdout"

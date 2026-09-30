@@ -2,8 +2,20 @@
 - name: Configure Ubuntu with MATE Desktop
   hosts: default
   become: true
+  gather_facts: true
+  vars_files:
+    - vars.yml
 
   tasks:
+    - name: Create APT configuration file
+      ansible.builtin.copy:
+        content: |
+          Dpkg::Options::="--force-confold";
+          Dpkg::Options::="--force-unsafe-io";
+          Acquire::Queue-Mode "host";
+        dest: /etc/apt/apt.conf.d/99redballoons
+        mode: '0644'
+
     - name: Update APT cache
       ansible.builtin.apt:
         update_cache: true
@@ -19,6 +31,7 @@
     - name: Install additional packages
       ansible.builtin.apt:
         name:
+          - acl
           - build-essential
           - curl
           - git
@@ -35,38 +48,59 @@
         name: x-session-manager
         path: /usr/bin/mate-session
 
-    - name: Configure LightDM to use MATE
-      ansible.builtin.lineinfile:
-        path: /etc/lightdm/lightdm.conf
-        regexp: '^user-session='
-        line: 'user-session=mate'
-        create: true
-        backup: true
+    - name: Ensure LightDM config directory exists
+      ansible.builtin.file:
+        path: /etc/lightdm
+        state: directory
+        mode: '0755'
 
-    - name: Enable auto-login for user
-      ansible.builtin.blockinfile:
-        path: /etc/lightdm/lightdm.conf
-        block: |
+    - name: Create LightDM configuration file
+      ansible.builtin.copy:
+        content: |
           [Seat:*]
           autologin-user={{ ansible_user }}
           autologin-user-timeout=0
-        create: true
+          user-session=mate
+          greeter-session=lightdm-gtk-greeter
+          greeter-hide-users=false
+          greeter-show-manual-login=true
+        dest: /etc/lightdm/lightdm.conf
+        mode: '0644'
         backup: true
 
-    - name: Configure display manager
+    - name: Create display-manager.service symlink to lightdm
+      ansible.builtin.file:
+        src: /lib/systemd/system/lightdm.service
+        dest: /etc/systemd/system/display-manager.service
+        state: link
+        force: true
+
+    - name: Create graphical.target.wants directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/graphical.target.wants
+        state: directory
+        mode: '0755'
+
+    - name: Create lightdm service symlink in graphical.target.wants
+      ansible.builtin.file:
+        src: /lib/systemd/system/lightdm.service
+        dest: /etc/systemd/system/graphical.target.wants/lightdm.service
+        state: link
+        force: true
+
+    - name: Reload systemd daemon
       ansible.builtin.systemd:
-        name: lightdm
-        enabled: true
+        daemon_reload: true
 
     - name: Create .Xauthority file
       ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/.Xauthority"
+        path: "{{ ansible_user_dir }}/.Xauthority"
         state: touch
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: '0600'
 
-    - name: Create .xinitrc for MATE
+    - name: Create .xinitrc
       ansible.builtin.copy:
         content: |
           #!/bin/sh
@@ -76,10 +110,16 @@
           fi
 
           exec mate-session
-        dest: "/home/{{ ansible_user }}/.xinitrc"
+        dest: "{{ ansible_user_dir }}/.xinitrc"
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: '0755'
+
+    - name: Set graphical target
+      ansible.builtin.systemd:
+        name: graphical.target
+        state: started
+        enabled: true
 
     - name: Disable snapd service and socket
       ansible.builtin.systemd:
@@ -99,3 +139,19 @@
         - snapd.service
         - snapd.socket
       ignore_errors: true
+
+    # - name: Ensure .ssh directory exists with correct permissions
+    #   ansible.builtin.file:
+    #     path: "{{ ansible_user_dir }}/.ssh"
+    #     state: directory
+    #     mode: '0700'
+    #     owner: "{{ ansible_user }}"
+    #     group: "{{ ansible_user }}"
+
+    # - name: Download GitHub SSH keys
+    #   ansible.builtin.get_url:
+    #     url: "https://github.com/{{ github_user }}.keys"
+    #     dest: "{{ ansible_user_dir }}/.ssh/authorized_keys"
+    #     mode: '0600'
+    #     owner: "{{ ansible_user }}"
+    #     group: "{{ ansible_user }}"

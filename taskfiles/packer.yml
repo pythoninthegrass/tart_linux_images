@@ -9,15 +9,16 @@ shopt: ['globstar']
 vars:
   INSTANCE_ID: ubuntu-{{now | date "20060102150405"}}
   WORK_DIR: "{{.ROOT_DIR}}/cloud-init"
-  BUILD_DIR: build
-  CIDATA_DIR: cidata
+  BUILD_DIR: "{{.ROOT_DIR}}/build"
+  CIDATA_DIR: "{{.ROOT_DIR}}/cidata"
   CLOUD_INIT_ISO: "{{.ROOT_DIR}}/cloud-init.iso"
 
 tasks:
   init:
     desc: Initialize packer plugins
+    dir: "{{.ROOT_DIR}}"
     cmds:
-      - packer init .
+      - packer init -upgrade .
 
   clean:
     desc: Clean build artifacts
@@ -27,47 +28,52 @@ tasks:
         rm -f {{.CLOUD_INIT_ISO}}
         rm -rf {{.CIDATA_DIR}}
 
-  cloud-init-iso:
-    desc: Create cloud-init ISO with admin group support
+  _cloud-init-iso:
+    internal: true
     deps:
       - clean
+    requires:
+      vars: [USER_DATA, HOSTNAME]
+    cmds:
+      - |
+        mkdir -p {{.CIDATA_DIR}}
+        cp {{.ROOT_DIR}}/{{.USER_DATA}} {{.CIDATA_DIR}}/user-data
+        cp {{.WORK_DIR}}/network-config {{.CIDATA_DIR}}/network-config
+        echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
+        echo "local-hostname: {{.HOSTNAME}}" >> {{.CIDATA_DIR}}/meta-data
+        hdiutil makehybrid -o {{.ROOT_DIR}}/cloud-init-tmp.iso {{.CIDATA_DIR}} -iso -joliet
+        mv {{.ROOT_DIR}}/cloud-init-tmp.iso {{.CLOUD_INIT_ISO}}
+        rm -rf {{.CIDATA_DIR}}
+
+  cloud-init-iso:
+    desc: Create cloud-init ISO with admin group support
     sources:
       - cloud-init/user-data.distro-with-admin-group
       - cloud-init/network-config
     generates:
       - cloud-init.iso
     cmds:
-      - |
-        mkdir -p {{.CIDATA_DIR}}
-        cp cloud-init/user-data.distro-with-admin-group {{.CIDATA_DIR}}/user-data
-        cp cloud-init/network-config {{.CIDATA_DIR}}/network-config
-        echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
-        echo "local-hostname: ubuntu" >> {{.CIDATA_DIR}}/meta-data
-        hdiutil makehybrid -o cloud-init.iso {{.CIDATA_DIR}} -iso -joliet
-        rm -rf {{.CIDATA_DIR}}
+      - task: _cloud-init-iso
+        vars:
+          USER_DATA: cloud-init/user-data.distro-with-admin-group
+          HOSTNAME: ubuntu
 
   cloud-init-iso-no-admin:
     desc: Create cloud-init ISO for distros without admin group
-    deps:
-      - clean
     sources:
       - cloud-init/user-data.distro-without-admin-group
       - cloud-init/network-config
     generates:
       - "{{.CLOUD_INIT_ISO}}"
     cmds:
-      - |
-        mkdir -p {{.CIDATA_DIR}}
-        cp cloud-init/user-data.distro-without-admin-group {{.CIDATA_DIR}}/user-data
-        cp cloud-init/network-config {{.CIDATA_DIR}}/network-config
-        echo "instance-id: {{.INSTANCE_ID}}" > {{.CIDATA_DIR}}/meta-data
-        echo "local-hostname: ubuntu" >> {{.CIDATA_DIR}}/meta-data
-        hdiutil makehybrid -o cloud-init-tmp.iso {{.CIDATA_DIR}} -iso -joliet
-        mv cloud-init-tmp.iso {{.CLOUD_INIT_ISO}}
-        rm -rf {{.CIDATA_DIR}}
+      - task: _cloud-init-iso
+        vars:
+          USER_DATA: cloud-init/user-data.distro-without-admin-group
+          HOSTNAME: ubuntu
 
   build:
     desc: Build the Packer image
+    dir: "{{.ROOT_DIR}}"
     deps:
       - cloud-init-iso
     sources:
@@ -80,7 +86,9 @@ tasks:
     cmds:
       - |
         mkdir -p {{.BUILD_DIR}}
-        packer build -var-file="variables.pkrvars.hcl" cloud-init.pkr.hcl
+        packer build \
+          -var-file="variables.pkrvars.hcl" \
+          {{.ROOT_DIR}}
 
   with-admin:
     desc: Build with admin group support (explicit)

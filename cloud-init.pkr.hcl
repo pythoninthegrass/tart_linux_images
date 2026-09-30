@@ -1,49 +1,3 @@
-packer {
-  required_plugins {
-    tart = {
-      source  = "github.com/cirruslabs/tart"
-      version = "~> 1.7.0"
-    }
-    ansible = {
-      version = "~> 1.1.3"
-      source = "github.com/hashicorp/ansible"
-    }
-  }
-}
-
-variable "vm_base_name" {
-  type = string
-  default = "ghcr.io/cirruslabs/ubuntu:latest"
-}
-
-variable "vm_name" {
-  type = string
-  default = "ubuntu"
-}
-
-variable "cpu_count" {
-  type = number
-  default = 2
-}
-
-variable "memory_gb" {
-  type = number
-  default = 3
-}
-
-variable "disk_size_gb" {
-  type = number
-  default = 32
-}
-
-variable "ssh_username" {
-  type = string
-}
-
-variable "ssh_password" {
-  type = string
-}
-
 source "tart-cli" "tart" {
   vm_base_name = "${var.vm_base_name}"
   vm_name = "${var.vm_name}"
@@ -53,6 +7,7 @@ source "tart-cli" "tart" {
   ssh_username = "${var.ssh_username}"
   ssh_password = "${var.ssh_password}"
   run_extra_args = ["--disk", "cloud-init.iso"]
+  display = "${var.display}"
   headless = false
   disable_vnc = true
 }
@@ -72,7 +27,7 @@ build {
   }
 
   provisioner "ansible" {
-    playbook_file = "customizations/mate-desktop.yml"
+    playbook_file = var.playbook
     user          = var.ssh_username
     use_proxy     = false
     ansible_env_vars = [
@@ -93,8 +48,9 @@ build {
 
   provisioner "shell" {
     inline = [
-      "sudo apt-get clean",
+      "command -v apt-get >/dev/null && sudo apt-get clean || true",
       "sudo rm -rf /var/lib/apt/lists/*",
+      "command -v dnf >/dev/null && sudo dnf clean all || true",
       "sudo rm -rf /tmp/*",
       "sudo rm -rf /var/tmp/*",
       "sudo cloud-init clean --logs",

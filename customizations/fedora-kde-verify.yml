@@ -1,0 +1,68 @@
+---
+- name: Verify Fedora KDE Plasma provisioning
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+
+    - name: Assert KDE Plasma is installed
+      ansible.builtin.assert:
+        that: "'plasma-workspace' in ansible_facts.packages"
+        fail_msg: "plasma-workspace is not installed"
+
+    - name: Assert Firefox is installed
+      ansible.builtin.assert:
+        that: "'firefox' in ansible_facts.packages"
+        fail_msg: "firefox is not installed"
+
+    - name: Assert spice-vdagent is installed
+      ansible.builtin.assert:
+        that: "'spice-vdagent' in ansible_facts.packages"
+        fail_msg: "spice-vdagent is not installed"
+
+    - name: Check default systemd target
+      ansible.builtin.command: systemctl get-default
+      register: default_target
+      changed_when: false
+
+    - name: Assert default target is graphical
+      ansible.builtin.assert:
+        that: default_target.stdout == "graphical.target"
+        fail_msg: "default target is {{ default_target.stdout }}, expected graphical.target"
+
+    - name: Query plasmalogin unit status
+      ansible.builtin.systemd:
+        name: plasmalogin
+      register: plasmalogin_status
+
+    - name: Assert plasmalogin is enabled
+      ansible.builtin.assert:
+        that: plasmalogin_status.status.UnitFileState == "enabled"
+        fail_msg: "plasmalogin is not enabled"
+
+    - name: Query spice-vdagentd unit status
+      ansible.builtin.systemd:
+        name: spice-vdagentd
+      register: spice_vdagentd_status
+
+    - name: Assert spice-vdagentd is running
+      ansible.builtin.assert:
+        that: spice_vdagentd_status.status.ActiveState == "active"
+        fail_msg: "spice-vdagentd is not running (socket-activated, no [Install] section to enable)"
+
+    - name: Read plasmalogin.conf
+      ansible.builtin.slurp:
+        src: /etc/plasmalogin.conf
+      register: plasmalogin_conf
+      failed_when: false
+
+    - name: Assert plasmalogin.conf configures autologin user and session
+      ansible.builtin.assert:
+        that:
+          - plasmalogin_conf is not failed
+          - "'User=' + ansible_user in (plasmalogin_conf.content | b64decode)"
+          - "'Session=plasma' in (plasmalogin_conf.content | b64decode)"
+        fail_msg: "/etc/plasmalogin.conf is missing autologin user or Session=plasma"

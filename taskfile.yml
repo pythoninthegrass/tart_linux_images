@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
 version: "3.0"
 
 set: ['e', 'u', 'pipefail']
@@ -14,6 +16,8 @@ includes:
     taskfile: ./taskfiles/packer.yml
   tart:
     taskfile: ./taskfiles/tart.yml
+  fedora:
+    taskfile: ./taskfiles/fedora.yml
 
 tasks:
   default:

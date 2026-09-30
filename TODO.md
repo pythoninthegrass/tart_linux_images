@@ -1,0 +1,4 @@
+# TODO
+
+- Evaluate whether Tart could implement a `VZCustomVirtioDevice`-backed GPU (venus/virgl) for Linux guests on macOS 27, instead of relying on the UTM/QEMU export path in `taskfiles/fedora.yml` for 3D acceleration.
+- Once a second desktop (e.g. MATE) gets its own verify playbook, extract the shared assertion logic out of `customizations/fedora-kde-verify.yml` into `customizations/verify-common/*.yml` `include_tasks` fragments (`assert_package.yml`, `assert_default_target.yml`, `assert_service_enabled.yml`, `assert_service_active.yml`, `assert_config_contains.yml`), each parameterized by one or two vars, and have both verify playbooks call them with per-desktop values. Don't build this until that second instance exists — the current single playbook already proved out real gotchas (`hosts: default` vs `all`, `spice-vdagentd` being a static unit) that a premature abstraction would have obscured.
