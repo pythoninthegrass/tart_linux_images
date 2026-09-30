@@ -21,11 +21,21 @@ vars:
   QCOW2_IMAGE: "{{.CACHE_DIR}}/fedora-{{.FEDORA_RELEASE}}.qcow2"
   RAW_IMAGE: "{{.CACHE_DIR}}/fedora-{{.FEDORA_RELEASE}}.raw"
   BASE_VM: "fedora-44-base"
-  VM_NAME: "fedora-44-kde"
-  CPUS: 8
-  MEMORY_GB: 16
-  DISK_GB: 100
-  DISPLAY: "2560x1440"
+  # Tasks in this file are included into the root Taskfile under the
+  # "fedora:" namespace. `task fedora:build VM_NAME=x` only overrides a var
+  # declared at the ROOT Taskfile's scope, not one declared here, so these
+  # self-reference through `env` to pick up both `task fedora:build
+  # VM_NAME=x` (CLI var, still resolves via `.VM_NAME` here) and `export
+  # VM_NAME=x; task fedora:build` (OS env var).
+  VM_NAME: '{{.VM_NAME | default (env "VM_NAME") | default "fedora-44-kde"}}'
+  CPUS: '{{.CPUS | default (env "CPUS") | default 8}}'
+  MEMORY_GB: '{{.MEMORY_GB | default (env "MEMORY_GB") | default 16}}'
+  DISK_GB: '{{.DISK_GB | default (env "DISK_GB") | default 100}}'
+  # Named RESOLUTION, not DISPLAY: Task auto-imports any ambient OS
+  # environment variable whose name matches a `vars:` entry, and DISPLAY is
+  # a standard X11 variable most machines with XQuartz/X11 forwarding
+  # already have set, which would silently override this.
+  RESOLUTION: '{{.RESOLUTION | default "2560x1440"}}'
   SSH_USERNAME: admin
   SSH_PASSWORD: admin
   UTM_QCOW2: "{{.CACHE_DIR}}/{{.VM_NAME}}-utm.qcow2"
@@ -78,7 +88,7 @@ tasks:
           -var "cpu_count={{.CPUS}}" \
           -var "memory_gb={{.MEMORY_GB}}" \
           -var "disk_size_gb={{.DISK_GB}}" \
-          -var "display={{.DISPLAY}}" \
+          -var "display={{.RESOLUTION}}" \
           -var "ssh_username={{.SSH_USERNAME}}" \
           -var "ssh_password={{.SSH_PASSWORD}}" \
           -var "playbook=customizations/fedora-kde.yml" \

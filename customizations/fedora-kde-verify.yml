@@ -23,6 +23,11 @@
         that: "'spice-vdagent' in ansible_facts.packages"
         fail_msg: "spice-vdagent is not installed"
 
+    - name: Assert kernel-modules is installed
+      ansible.builtin.assert:
+        that: "'kernel-modules' in ansible_facts.packages"
+        fail_msg: "kernel-modules is not installed (Fedora Cloud's base image ships only kernel-modules-core, which has no sound drivers)"
+
     - name: Check default systemd target
       ansible.builtin.command: systemctl get-default
       register: default_target

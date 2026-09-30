@@ -26,6 +26,12 @@
           - spice-vdagent
           - mesa-dri-drivers
           - mesa-vulkan-drivers
+          # The Fedora Cloud base image ships only kernel-modules-core
+          # (storage/network essentials); virtio_snd, snd-hda-intel, and
+          # effectively every other sound driver live in kernel-modules,
+          # so without it neither Tart nor UTM guests have any audio
+          # device at all.
+          - kernel-modules
         state: present
 
     - name: Configure plasmalogin autologin user
