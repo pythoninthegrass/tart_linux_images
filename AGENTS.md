@@ -31,3 +31,8 @@
 - `.cirrus.yml` builds cloud disks from scratch: download QCOW2 → convert to raw → generate a `cidata` ISO with `mkisofs` → `tart create --linux` → replace the VM disk → root Packer → optional runner Packer. Distro fixtures and architecture selections are defined there; registry pushes occur only for cron builds.
 - CI's root `packer build -var vm_name="$VM_ID" .` omits required SSH/display variables and leaves `vm_base_name` at its Ubuntu registry default despite creating a VM from a distro disk first. Reconcile these inputs when changing the root build; local Task and CI builds are not equivalent.
 - For Tart documentation, use Context7 library `/openai/tart`; the Packer plugin source remains `github.com/cirruslabs/tart` as declared in `providers.pkr.hcl`.
+
+## Further reading
+
+- `docs/development.md`: Task/`mvdan-sh` quirks (process-group backgrounding, `if`-without-`else` exit status, nested-include var/dir scoping), UTM `osascript` quirks (no scriptable sound property, config caching, QEMU device-ordering failures), and Fedora/Ansible gotchas (missing `kernel-modules`, static systemd units, `dnf5`'s `python3-libdnf5` dependency) hit while building the Fedora KDE Plasma image and its UTM export.
+- `docs/utm.md`: the Tart-to-UTM export workflow (`task fedora:utm`), its var-override rules, and how to verify 3D acceleration and audio in the guest.
